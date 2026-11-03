@@ -4,3 +4,5 @@ build/
 *.keystore
 *.jks
 .DS_Store
+# Created by --install-android-build-template (see README)
+android/

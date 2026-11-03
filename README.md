@@ -26,6 +26,24 @@ godot --headless --path . --export-release Android build/Nightlight.apk
 
 For PC emulators (x86_64): `godot --headless --path . --export-release "Android x86" build/Nightlight-x86_64.apk`
 
+## Build for Google Play (AAB)
+
+Play takes an Android App Bundle, which needs a Gradle build. With the same three `export` lines as above:
+
+```bash
+mkdir -p build
+godot --headless --path . --import
+godot --headless --path . --install-android-build-template --export-release "Play Store" build/Nightlight.aab
+```
+
+The first run downloads Gradle and writes an `android/` folder of about 1.2 GB. It is generated, so it's ignored by git and safe to delete.
+
+Every Play upload needs a higher `version/code` than the last one, in the `[preset.2.options]` section of `export_presets.cfg`. The first Play build is code 3. Do not lose or change the keystore: whichever key signs the first upload becomes the Play upload key.
+
+Facts for Play Console forms, as of this code: no permissions requested, no internet use, no ads, no accounts, no analytics. Progress is saved only on the phone. Target SDK 36, minimum SDK 24, 64-bit included, 16 KB page support confirmed on the arm64 libraries. About 30 MB to download per phone.
+
+To test an AAB the way Play will split it, use Google's `bundletool` (`build-apks`, then `install-apks`).
+
 Raise `version/code` in `export_presets.cfg` for every new build (both presets). Every release must be signed with the same keystore, or it won't install over existing copies.
 
 ## Layout
@@ -39,4 +57,4 @@ Raise `version/code` in `export_presets.cfg` for every new build (both presets).
 - Difficulty, no phone needed: `godot --headless --path . -- --balance 20 candle`
 - Screen tests run on a debug build on a phone or emulator. Put `--selftest user://shots` or `--perf user://shots` in `user://test_args.txt`, because Android drops launch arguments
 - Fake a camera hole on an emulator: `adb shell cmd overlay enable com.android.internal.display.cutout.emulation.hole`
-- The build warning about `themed_icon` comes from Godot's own export template and is harmless
+- The `themed_icon` warning appears only on the plain APK builds, from Godot's prebuilt template, and is harmless. The Play Store build doesn't have it
