@@ -1,0 +1,6 @@
+.keystore/
+.godot/
+build/
+*.keystore
+*.jks
+.DS_Store
