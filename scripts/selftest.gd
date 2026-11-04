@@ -293,10 +293,37 @@ func start(shot_dir: String, _playthrough := false) -> void:
 	_ok(g.won, "reaching dawn wins")
 	await _shot("end_won")
 
+	_late_night_rules()
 	_ok(not FileAccess.file_exists("user://save.json"), "test runs never write the player's progress")
 	Save.d.stardust = saved_stardust
 	print("RESULT passes=%d fails=%d" % [passes, fails])
 	get_tree().quit(1 if fails > 0 else 0)
+
+
+## After 2:00 each shadow grows tougher and embers give back less light, so the end of the night stays tense.
+func _late_night_rules() -> void:
+	var n := GameScene.NIGHT_LENGTH
+	_ok(Data.lateness(Data.LATE_START - 1.0, n) == 0.0 and Data.lateness(n, n) == 1.0, "the late night starts at 2:00 and peaks at dawn")
+	var g := GameScene.new("normal", true, "candle")
+	g.luck = 0.0   # no random elites, so the two shadows compare fairly
+	g.t = Data.LATE_START
+	var early := g.spawn(Data.SHADE, Vector2(900, 0))
+	g.t = n - 1.0
+	var late := g.spawn(Data.SHADE, Vector2(900, 0))
+	_ok(late.hp > early.hp * 2.0, "late shadows are much tougher (%.0f vs %.0f health)" % [late.hp, early.hp])
+	_ok(late.dmg > early.dmg * 1.5, "late shadows hit harder")
+	var heal := func(at: float) -> float:
+		g.t = at
+		g.light = 10.0
+		var m := GameScene.Ember.new()
+		m.kind = GameScene.EMBER_SMALL
+		m.value = 10
+		g._collect(m)
+		return g.light - 10.0
+	var early_heal: float = heal.call(60.0)
+	var late_heal: float = heal.call(n - 1.0)
+	_ok(late_heal > 0.0 and late_heal < early_heal * 0.6, "late embers give back less light (%.1f vs %.1f)" % [late_heal, early_heal])
+	g.free()
 
 
 ## Lets the automated player run the busiest part of a night and reports the real frame rate.

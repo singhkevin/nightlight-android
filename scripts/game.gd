@@ -201,6 +201,7 @@ var card_count := 3
 var won := false
 var finished := false
 var bosses_killed := 0
+var damage_taken := 0.0   # only read by the difficulty tools
 
 # Things in the world
 var enemies: Array = []
@@ -661,6 +662,7 @@ func _update_light(dt: float) -> void:
 func hurt(amount: float) -> void:
 	if i_frames > 0.0 or finished: return
 	light -= amount
+	damage_taken += amount
 	i_frames = 0.7
 	shake = maxf(shake, 7.0)
 	Sound.play("hurt", 1.0, 0.1)
@@ -738,7 +740,8 @@ func _fire_event(ev: Array) -> void:
 func spawn(kind: int, pos: Vector2, forced_elite := false) -> Enemy:
 	var e := Enemy.new()
 	var d: Array = Data.ENEMY[kind]
-	var hp_scale: float = (1.0 + t / 55.0 + pow(t / 110.0, 2.0)) * modifier.hp
+	var late := Data.lateness(t, NIGHT_LENGTH)
+	var hp_scale: float = (1.0 + t / 55.0 + pow(t / 110.0, 2.0)) * modifier.hp * (1.0 + Data.LATE_HP * late)
 	_uid += 1
 	e.uid = _uid
 	e.kind = kind
@@ -748,7 +751,7 @@ func spawn(kind: int, pos: Vector2, forced_elite := false) -> Enemy:
 	e.phase = randf_range(0.0, 6.28)
 	e.r = d[0]
 	e.speed = d[2] * modifier.espeed * (1.0 + t / 900.0)
-	e.dmg = d[3] * (1.0 + t / 400.0)
+	e.dmg = d[3] * (1.0 + t / 400.0) * (1.0 + Data.LATE_DAMAGE * late)
 	e.xp = d[4]
 	e.hp = d[1] * modifier.hp if e.is_boss else d[1] * hp_scale
 	e.elite = forced_elite or (not e.is_boss and t > 50.0 and randf() < 0.016 * luck)
@@ -1027,7 +1030,7 @@ func _collect(m: Ember) -> void:
 	match m.kind:
 		EMBER_SMALL, EMBER_BIG:
 			_add_xp(m.value * xp_mul)
-			light = minf(max_light, light + 0.34 * m.value)
+			light = minf(max_light, light + 0.34 * m.value * (1.0 - Data.LATE_HEAL * Data.lateness(t, NIGHT_LENGTH)))
 			ember_combo_timer = 0.7
 			Sound.play("ember%d" % mini(ember_combo, 7), 0.8, 0.03)
 			ember_combo += 1
