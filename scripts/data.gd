@@ -16,7 +16,20 @@ const ENEMY := [
 	[78.0, 3600.0, 76.0, 20.0, 80],
 ]
 
-const WEAPONS := ["bolt", "moths", "nova", "fireflies", "trail", "zap", "starfall"]
+# The late night (Android only, not from the Mac). The number of shadows stops growing at about 2:30 so phones
+# stay smooth, so from 2:00 each shadow grows tougher instead, and embers give back less light.
+const LATE_START := 120.0       # seconds into the night when it starts
+const LATE_HP := 1.6            # shadows have up to this much extra health by dawn (+160%)
+const LATE_DAMAGE := 0.7        # and hit up to 70% harder
+const LATE_HEAL := 0.5          # embers give back up to 50% less light
+
+
+## 0 before the late night begins, rising to 1 at dawn.
+static func lateness(t: float, night: float) -> float:
+	return clampf((t - LATE_START) / (night - LATE_START), 0.0, 1.0)
+
+
+const WEAPONS :=["bolt", "moths", "nova", "fireflies", "trail", "zap", "starfall"]
 const WEAPON_NAME := {
 	"bolt": "Spark Bolt", "moths": "Moth Ring", "nova": "Flare Nova", "fireflies": "Fireflies",
 	"trail": "Ember Trail", "zap": "Chain Zap", "starfall": "Starfall",
