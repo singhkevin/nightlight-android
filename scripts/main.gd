@@ -20,11 +20,21 @@ func _ready() -> void:
 	const TEST_FILE := "user://test_args.txt"
 	if OS.is_debug_build() and OS.has_feature("android") and FileAccess.file_exists(TEST_FILE):
 		args = PackedStringArray(FileAccess.get_file_as_string(TEST_FILE).strip_edges().split(" "))
+	# `--maxshop` runs the bot as if every stat upgrade in the shop were bought (dice and fourth card excluded).
+	if args.has("--maxshop"):
+		for id in ["flame", "power", "feet", "wisdom"]: Save.d.shop[id] = 5
 	var flag := args.find("--balance")
 	if flag >= 0:
 		test_mode = true
 		Sound.enabled = false
-		_run_balance(int(args[flag + 1]), args[flag + 2] if args.size() > flag + 2 else "candle")
+		_run_balance(int(args[flag + 1]), args[flag + 2] if args.size() > flag + 2 and not args[flag + 2].begins_with("--") else "candle")
+		get_tree().quit()
+		return
+	flag = args.find("--curve")
+	if flag >= 0:
+		test_mode = true
+		Sound.enabled = false
+		_run_curve(int(args[flag + 1]), args[flag + 2] if args.size() > flag + 2 and not args[flag + 2].begins_with("--") else "candle")
 		get_tree().quit()
 		return
 
@@ -84,6 +94,47 @@ func _notification(what: int) -> void:
 			if current is GameScene: current.auto_pause()
 		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED:
 			Sound.set_background(false)
+
+
+## How hard each 30 seconds of the night is, averaged over many bot runs.
+func _run_curve(runs: int, flame: String) -> void:
+	const SLICES := 12
+	var alive_runs := PackedInt32Array(); alive_runs.resize(SLICES)
+	var deaths := PackedInt32Array(); deaths.resize(SLICES)
+	var light_sum := PackedFloat32Array(); light_sum.resize(SLICES)
+	var dmg_sum := PackedFloat32Array(); dmg_sum.resize(SLICES)
+	var enemy_sum := PackedFloat32Array(); enemy_sum.resize(SLICES)
+	var low_sum := PackedFloat32Array(); low_sum.resize(SLICES)
+	var samples := PackedInt32Array(); samples.resize(SLICES)
+	var level_sum := PackedFloat32Array(); level_sum.resize(SLICES)
+	for r in runs:
+		var g := GameScene.new("normal", true, flame)
+		var last_slice := -1
+		var dmg_at_start := 0.0
+		while not g.finished and g.t < 400.0:
+			if g.state == GameScene.State.LEVEL_UP: g.choose_option(g.current_options.pick_random())
+			g.step(1.0 / 60.0)
+			var s := mini(int(g.t / 30.0), SLICES - 1)
+			if s != last_slice:
+				if last_slice >= 0: dmg_sum[last_slice] += g.damage_taken - dmg_at_start
+				dmg_at_start = g.damage_taken
+				alive_runs[s] += 1
+				last_slice = s
+			var frac := g.light / g.max_light
+			light_sum[s] += frac
+			if frac < 0.3: low_sum[s] += 1.0
+			enemy_sum[s] += g.enemies.size()
+			level_sum[s] += g.level
+			samples[s] += 1
+		dmg_sum[last_slice] += g.damage_taken - dmg_at_start
+		if not g.won: deaths[last_slice] += 1
+		g.free()
+	print("flame=%s runs=%d  (per 30 s of night: runs still alive, deaths, avg light, time under 30%% light, hits taken, enemies, level)" % [flame, runs])
+	for s in SLICES - 2:
+		var n := maxi(1, samples[s])
+		print("%s-%s  alive=%2d  deaths=%2d  light=%3d%%  low=%3d%%  hurt/run=%5.1f  enemies=%3d  level=%4.1f" % [
+				Data.time_string(s * 30), Data.time_string(s * 30 + 30), alive_runs[s], deaths[s], int(light_sum[s] / n * 100), int(low_sum[s] / n * 100),
+				dmg_sum[s] / maxi(1, alive_runs[s]), int(enemy_sum[s] / n), level_sum[s] / n])
 
 
 func _run_balance(runs: int, flame: String) -> void:

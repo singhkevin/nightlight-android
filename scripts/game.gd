@@ -201,6 +201,7 @@ var card_count := 3
 var won := false
 var finished := false
 var bosses_killed := 0
+var damage_taken := 0.0   # only read by the difficulty tools
 
 # Things in the world
 var enemies: Array = []
@@ -661,6 +662,7 @@ func _update_light(dt: float) -> void:
 func hurt(amount: float) -> void:
 	if i_frames > 0.0 or finished: return
 	light -= amount
+	damage_taken += amount
 	i_frames = 0.7
 	shake = maxf(shake, 7.0)
 	Sound.play("hurt", 1.0, 0.1)
